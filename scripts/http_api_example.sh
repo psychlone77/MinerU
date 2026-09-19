@@ -13,6 +13,7 @@
 #   MINERU_API_URL     (required)  Service root before /v1.
 #   MINERU_API_KEY     (optional)  Bearer key; attached only to same-origin requests.
 #   MINERU_TIER        (optional)  Requested tier (default: flash, for native documents).
+#   MINERU_LANG        (optional)  Language for OCR (default: ch, e.g. sin, en).
 #   OUTPUT_FORMATS     (optional)  Comma-separated (default: markdown,zip).
 #   OUTPUT_DIR         (optional)  Download directory (default: current directory).
 #   PAGE_RANGE         (optional)  PDF page range such as "1-10"; omit for whole/native documents.
@@ -55,6 +56,7 @@ command -v python3 >/dev/null 2>&1 || die "python3 is required"
 BASE_URL="${MINERU_API_URL:-}"
 API_KEY="${MINERU_API_KEY:-}"
 TIER="${MINERU_TIER:-flash}"
+LANG_OPT="${MINERU_LANG:-ch}"
 OUTPUT_FORMATS_CSV="${OUTPUT_FORMATS:-markdown,zip}"
 OUTPUT_DIR="${OUTPUT_DIR:-.}"
 PAGE_RANGE="${PAGE_RANGE:-}"
@@ -301,12 +303,13 @@ FILE_ID=$(json_string "$RESPONSE" '.file.id' 'upload')
 # ── 4. Submit the parse job ────────────────────────────────────────────────
 echo "==> Submitting parse job (tier=$TIER, formats=$OUTPUT_FORMATS_CSV)"
 jq -n \
-  --arg file_id "$FILE_ID" --arg tier "$TIER" \
+  --arg file_id "$FILE_ID" --arg tier "$TIER" --arg lang "$LANG_OPT" \
   --arg formats_csv "$OUTPUT_FORMATS_CSV" --arg page_range "$PAGE_RANGE" \
   '{
     files: [{source: {type: "file_id", file_id: $file_id}}
             + (if $page_range == "" then {} else {page_range: $page_range} end)],
     tier: $tier,
+    lang: $lang,
     output_formats: ($formats_csv | split(",") | map(gsub("^ +| +$"; "")))
   }' >"$REQUEST_BODY"
 curl_json "create job" "$REQUEST_TIMEOUT" -X POST "$BASE_URL/v1/parse/jobs" \

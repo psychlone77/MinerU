@@ -187,6 +187,8 @@ def test_api_rejects_bad_ranges_before_creating_jobs(tmp_path: Path) -> None:
             assert error["param"] == "files.1.page_range"
         schema = client.get("/openapi.json").json()
         assert "r1" in schema["components"]["schemas"]["JobFileEntry"]["properties"]["page_range"]["description"]
+        assert "lang" in schema["components"]["schemas"]["CreateJobRequest"]["properties"]
+        assert schema["components"]["schemas"]["CreateJobRequest"]["properties"]["lang"]["default"] == "ch"
 
 
 def test_cli_rejects_old_syntax_and_kit_preserves_range_error(tmp_path: Path) -> None:
