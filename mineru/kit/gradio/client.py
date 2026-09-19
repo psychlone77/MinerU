@@ -63,11 +63,18 @@ def normalize_v1_base_url(value: str) -> str:
     try:
         parsed = httpx.URL(normalized)
     except (httpx.InvalidURL, ValueError) as exc:
-        raise V1ArtifactError(f"Invalid V1 API URL: {value}", code="invalid_api_url") from exc
+        raise V1ArtifactError(
+            f"Invalid V1 API URL: {value}", code="invalid_api_url"
+        ) from exc
     if parsed.scheme not in {"http", "https"} or not parsed.host:
-        raise V1ArtifactError(f"Unsupported V1 API URL: {value}", code="invalid_api_url")
+        raise V1ArtifactError(
+            f"Unsupported V1 API URL: {value}", code="invalid_api_url"
+        )
     if parsed.query or parsed.fragment or parsed.username or parsed.password:
-        raise V1ArtifactError("V1 API URL must not contain credentials, query, or fragment", code="invalid_api_url")
+        raise V1ArtifactError(
+            "V1 API URL must not contain credentials, query, or fragment",
+            code="invalid_api_url",
+        )
     return str(parsed).rstrip("/")
 
 
@@ -80,9 +87,14 @@ def _error_detail(response: httpx.Response) -> tuple[str, str]:
     error = payload.get("error") if isinstance(payload, dict) else None
     if isinstance(error, dict):
         code = str(error.get("code") or f"http_{response.status_code}")
-        message = str(error.get("message") or response.text[:500] or "V1 API request failed")
+        message = str(
+            error.get("message") or response.text[:500] or "V1 API request failed"
+        )
         return code, message
-    return f"http_{response.status_code}", response.text[:500] or "V1 API request failed"
+    return (
+        f"http_{response.status_code}",
+        response.text[:500] or "V1 API request failed",
+    )
 
 
 def _check_json_response(response: httpx.Response, *, endpoint: str) -> dict[str, Any]:
@@ -93,9 +105,13 @@ def _check_json_response(response: httpx.Response, *, endpoint: str) -> dict[str
     try:
         payload = response.json()
     except ValueError as exc:
-        raise V1ArtifactError(f"{endpoint} did not return JSON", code="invalid_response") from exc
+        raise V1ArtifactError(
+            f"{endpoint} did not return JSON", code="invalid_response"
+        ) from exc
     if not isinstance(payload, dict):
-        raise V1ArtifactError(f"{endpoint} returned a non-object JSON payload", code="invalid_response")
+        raise V1ArtifactError(
+            f"{endpoint} returned a non-object JSON payload", code="invalid_response"
+        )
     return payload
 
 
@@ -111,7 +127,9 @@ class V1ArtifactClient:
     ) -> None:
         """创建不保存文档内容的 V1 client；API Key 只保存在当前进程内存。"""
         self.base_url = normalize_v1_base_url(api_url)
-        self.api_key = api_key if api_key is not None else os.environ.get("MINERU_API_KEY")
+        self.api_key = (
+            api_key if api_key is not None else os.environ.get("MINERU_API_KEY")
+        )
         self._transport = transport
         self._capabilities: V1ServerCapabilities | None = None
 
@@ -130,21 +148,38 @@ class V1ArtifactClient:
                 trust_env=trust_env,
                 transport=self._transport,
             ) as client:
-                health_response = await client.get(f"{self.base_url}/v1/health", headers=self._headers())
-                health = _check_json_response(health_response, endpoint="GET /v1/health")
-                tiers_response = await client.get(f"{self.base_url}/v1/tiers", headers=self._headers())
-                tiers_payload = _check_json_response(tiers_response, endpoint="GET /v1/tiers")
+                health_response = await client.get(
+                    f"{self.base_url}/v1/health", headers=self._headers()
+                )
+                health = _check_json_response(
+                    health_response, endpoint="GET /v1/health"
+                )
+                tiers_response = await client.get(
+                    f"{self.base_url}/v1/tiers", headers=self._headers()
+                )
+                tiers_payload = _check_json_response(
+                    tiers_response, endpoint="GET /v1/tiers"
+                )
         except V1ArtifactError:
             raise
         except httpx.HTTPError as exc:
-            raise V1ArtifactError(f"Unable to reach V1 API at {self.base_url}: {exc}", code="server_unreachable") from exc
+            raise V1ArtifactError(
+                f"Unable to reach V1 API at {self.base_url}: {exc}",
+                code="server_unreachable",
+            ) from exc
 
         features = health.get("features")
         if health.get("status") != "ok":
-            raise V1ArtifactError("V1 health response did not report status=ok", code="invalid_response")
+            raise V1ArtifactError(
+                "V1 health response did not report status=ok", code="invalid_response"
+            )
         if not isinstance(features, dict):
-            raise V1ArtifactError("V1 health response is missing features", code="invalid_response")
-        output_formats = _string_tuple(features.get("output_formats"), "features.output_formats")
+            raise V1ArtifactError(
+                "V1 health response is missing features", code="invalid_response"
+            )
+        output_formats = _string_tuple(
+            features.get("output_formats"), "features.output_formats"
+        )
         sources = _string_tuple(features.get("sources"), "features.sources")
         if "zip" not in output_formats:
             raise V1ArtifactError(
@@ -159,14 +194,19 @@ class V1ArtifactClient:
 
         raw_tiers = tiers_payload.get("data")
         if not isinstance(raw_tiers, list):
-            raise V1ArtifactError("V1 tiers response is missing data", code="invalid_response")
+            raise V1ArtifactError(
+                "V1 tiers response is missing data", code="invalid_response"
+            )
         tiers: list[str] = []
         for item in raw_tiers:
             tier_id = item.get("id") if isinstance(item, dict) else None
             if isinstance(tier_id, str) and tier_id in TIERS and tier_id not in tiers:
                 tiers.append(tier_id)
         if not tiers:
-            raise V1ArtifactError("The V1 API server did not advertise a supported parsing tier", code="tier_unavailable")
+            raise V1ArtifactError(
+                "The V1 API server did not advertise a supported parsing tier",
+                code="tier_unavailable",
+            )
 
         capabilities = V1ServerCapabilities(
             base_url=self.base_url,
@@ -191,7 +231,9 @@ class V1ArtifactClient:
         if not path.is_file():
             raise FileNotFoundError(path)
         if tier not in TIERS:
-            raise V1ArtifactError(f"Unsupported parse tier: {tier}", code="invalid_request")
+            raise V1ArtifactError(
+                f"Unsupported parse tier: {tier}", code="invalid_request"
+            )
 
         emit = status_callback or (lambda _message: None)
         emit(STATUS_PREPARING_REQUEST)
@@ -199,7 +241,10 @@ class V1ArtifactClient:
             emit(STATUS_CHECKING_SERVER)
             await self.discover()
         if self._capabilities is None or tier not in self._capabilities.tiers:
-            raise V1ArtifactError(f"Tier '{tier}' is not available in the configured V1 API server", code="tier_unavailable")
+            raise V1ArtifactError(
+                f"Tier '{tier}' is not available in the configured V1 API server",
+                code="tier_unavailable",
+            )
 
         emit(STATUS_SUBMITTING_TASK)
         parser = MinerUApiParser(
@@ -207,6 +252,7 @@ class V1ArtifactClient:
             api_key=self.api_key,
             tier=cast(Tier, tier),
             ocr_mode=ocr_mode,
+            lang=os.environ.get("MINERU_LANG", "ch"),
             include_images=True,
             include_model_output=True,
         )
@@ -224,12 +270,16 @@ class V1ArtifactClient:
             emit(messages[status])
 
         try:
-            result = await parser.parse_async(path, page_range=page_range, status_callback=on_job_status)
+            result = await parser.parse_async(
+                path, page_range=page_range, status_callback=on_job_status
+            )
         except Exception as exc:
             emit(f"Failed: {exc}")
             if isinstance(exc, (FileNotFoundError, V1ArtifactError)):
                 raise
-            raise V1ArtifactError(str(exc), code=getattr(exc, "code", "parse_failed")) from exc
+            raise V1ArtifactError(
+                str(exc), code=getattr(exc, "code", "parse_failed")
+            ) from exc
         return result
 
     def _headers(self) -> dict[str, str]:
@@ -242,17 +292,30 @@ class V1ArtifactClient:
 class GradioArtifactClient:
     """合并已发现的服务能力，并将缺失的 Flash 请求路由到本地 V1 服务。"""
 
-    def __init__(self, primary: V1ArtifactClient, *, local_flash: V1ArtifactClient | None = None) -> None:
+    def __init__(
+        self, primary: V1ArtifactClient, *, local_flash: V1ArtifactClient | None = None
+    ) -> None:
         """根据独立能力快照建立明确的档位映射，不修改任何服务声明。"""
         capabilities = primary.capabilities
         if capabilities is None:
-            raise ValueError("Discover the primary V1 API capabilities before constructing the Gradio client")
+            raise ValueError(
+                "Discover the primary V1 API capabilities before constructing the Gradio client"
+            )
         self._clients_by_tier = dict.fromkeys(capabilities.tiers, primary)
         if local_flash is not None and "flash" not in self._clients_by_tier:
-            if local_flash.capabilities is None or "flash" not in local_flash.capabilities.tiers:
-                raise V1ArtifactError("The local V1 API server did not advertise Flash", code="tier_unavailable")
+            if (
+                local_flash.capabilities is None
+                or "flash" not in local_flash.capabilities.tiers
+            ):
+                raise V1ArtifactError(
+                    "The local V1 API server did not advertise Flash",
+                    code="tier_unavailable",
+                )
             self._clients_by_tier["flash"] = local_flash
-        self._capabilities = replace(capabilities, tiers=tuple(tier for tier in TIERS if tier in self._clients_by_tier))
+        self._capabilities = replace(
+            capabilities,
+            tiers=tuple(tier for tier in TIERS if tier in self._clients_by_tier),
+        )
 
     @property
     def capabilities(self) -> V1ServerCapabilities:
@@ -270,19 +333,29 @@ class GradioArtifactClient:
     ) -> ParseResult:
         """仅向该档位对应的服务提交文件，复用原有状态、取消和产物流程。"""
         if tier not in TIERS:
-            raise V1ArtifactError(f"Unsupported parse tier: {tier}", code="invalid_request")
+            raise V1ArtifactError(
+                f"Unsupported parse tier: {tier}", code="invalid_request"
+            )
         client = self._clients_by_tier.get(tier)
         if client is None:
-            raise V1ArtifactError(f"Tier '{tier}' is not available in Gradio", code="tier_unavailable")
+            raise V1ArtifactError(
+                f"Tier '{tier}' is not available in Gradio", code="tier_unavailable"
+            )
         return await client.parse_file(
-            path, tier=tier, page_range=page_range, ocr_mode=ocr_mode, status_callback=status_callback
+            path,
+            tier=tier,
+            page_range=page_range,
+            ocr_mode=ocr_mode,
+            status_callback=status_callback,
         )
 
 
 def _string_tuple(value: object, field_name: str) -> tuple[str, ...]:
     """把能力字段严格收敛为字符串元组。"""
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
-        raise V1ArtifactError(f"V1 health response field {field_name} is invalid", code="invalid_response")
+        raise V1ArtifactError(
+            f"V1 health response field {field_name} is invalid", code="invalid_response"
+        )
     return tuple(value)
 
 
@@ -325,7 +398,11 @@ class ManagedLocalApiServer:
         """启动 `mineru-kit api-server` 并等待 `/v1/health` 返回成功。"""
         if self.process is not None and self.process.poll() is None:
             raise RuntimeError("Managed V1 API server is already running")
-        if self.process is not None or self._temp_dir is not None or self._control is not None:
+        if (
+            self.process is not None
+            or self._temp_dir is not None
+            or self._control is not None
+        ):
             self.stop()
         self._temp_dir = tempfile.TemporaryDirectory(prefix="mineru-kit-gradio-api-")
         upload_dir = Path(self._temp_dir.name) / "uploads"
@@ -434,22 +511,32 @@ class ManagedLocalApiServer:
         timeout_seconds = _startup_timeout_seconds()
         deadline = time.monotonic() + timeout_seconds
         last_error = ""
-        with httpx.Client(timeout=httpx.Timeout(3, connect=1), trust_env=False) as client:
+        with httpx.Client(
+            timeout=httpx.Timeout(3, connect=1), trust_env=False
+        ) as client:
             while time.monotonic() < deadline:
                 if self.process is not None and self.process.poll() is not None:
-                    raise V1ArtifactError("Managed V1 API server exited before becoming ready", code="server_start_failed")
+                    raise V1ArtifactError(
+                        "Managed V1 API server exited before becoming ready",
+                        code="server_start_failed",
+                    )
                 try:
                     response = client.get(f"{self.base_url}/v1/health")
                     if response.status_code < 400:
                         return
                     error_code, last_error = _error_detail(response)
-                    if response.status_code < 500 or error_code.startswith("model_preload_"):
+                    if response.status_code < 500 or error_code.startswith(
+                        "model_preload_"
+                    ):
                         raise V1ArtifactError(last_error, code=error_code)
                 except httpx.HTTPError as exc:
                     last_error = str(exc)
                 time.sleep(0.1)
         suffix = f": {last_error}" if last_error else ""
-        raise V1ArtifactError(f"Timed out waiting for managed V1 API server{suffix}", code="server_start_timeout")
+        raise V1ArtifactError(
+            f"Timed out waiting for managed V1 API server{suffix}",
+            code="server_start_timeout",
+        )
 
     def _cleanup_temp_dir(self) -> None:
         """清理托管 server 的上传临时目录。"""

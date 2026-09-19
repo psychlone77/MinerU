@@ -112,6 +112,7 @@ class MinerUApiParser(DocumentParser):
         ocr_mode: Literal["auto", "txt", "ocr"] | None = None,
         include_images: bool = False,
         include_model_output: bool = False,
+        lang: str | None = None,
     ) -> None:
         """保存请求配置；未指定 OCR 模式时省略字段，保留既有客户端的请求结构。"""
         if ocr_mode is not None and ocr_mode not in ("auto", "txt", "ocr"):
@@ -125,6 +126,7 @@ class MinerUApiParser(DocumentParser):
         self.ocr_mode = ocr_mode
         self.include_images = include_images
         self.include_model_output = include_model_output
+        self.lang = lang
 
     # ── DocumentParser interface ─────────────────────────────────────
 
@@ -219,6 +221,8 @@ class MinerUApiParser(DocumentParser):
             payload["tier"] = self.tier
         if self.ocr_mode is not None:
             payload["ocr_mode"] = self.ocr_mode
+        if self.lang is not None:
+            payload["lang"] = self.lang
         return payload
 
     def _supports_local_source(self) -> bool:

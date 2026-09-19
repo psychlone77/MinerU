@@ -41,6 +41,7 @@ def _prepare_analysis(
     effort: AnalyzeEffort,
     parse_mode: ParseMode,
     vlm_config: VlmConfig | None,
+    lang: str | None = None,
 ) -> None:
     """创建 PDF、解析模式和模型，所有阶段共享同一文档级资源状态。"""
     import os
@@ -56,7 +57,7 @@ def _prepare_analysis(
     state.parse_mode = cast(ResolvedParseMode, parse_mode)
     state.flash_txt_mode = effort == "flash" and state.parse_mode == "txt"
     if not state.flash_txt_mode:
-        state.hybrid_model = HybridLocalModelContextSingleton().get_model()
+        state.hybrid_model = HybridLocalModelContextSingleton().get_model(lang=lang)
         acquire_document(state.hybrid_model.device)
         if effort in {"high", "xhigh"}:
             state.predictor, _backend = get_vlm_predictor(vlm_config)
@@ -81,11 +82,12 @@ def analyze_pdf(
     parse_mode: ParseMode = "auto",
     image_analysis: bool = True,
     vlm_config: VlmConfig | None = None,
+    lang: str | None = None,
 ) -> AnalysisResult:
     """使用共享资源生命周期与同步窗口编排生产 PDF 模型结果。"""
     state = _PDFAnalysis()
     try:
-        _prepare_analysis(state, file_bytes, effort, parse_mode, vlm_config)
+        _prepare_analysis(state, file_bytes, effort, parse_mode, vlm_config, lang=lang)
         infer_started_at = time.perf_counter()
         model_list = process_pdf_windows(
             file_bytes,
@@ -109,11 +111,12 @@ async def aio_analyze_pdf(
     parse_mode: ParseMode = "auto",
     image_analysis: bool = True,
     vlm_config: VlmConfig | None = None,
+    lang: str | None = None,
 ) -> AnalysisResult:
     """原生异步调度 VLM；同步准备、回填与清理使用取消安全的线程边界。"""
     state = _PDFAnalysis()
     try:
-        await run_sync(_prepare_analysis, state, file_bytes, effort, parse_mode, vlm_config)
+        await run_sync(_prepare_analysis, state, file_bytes, effort, parse_mode, vlm_config, lang=lang)
         if state.document is None or state.hybrid_model is None or state.predictor is None:
             raise ValueError("Native async PDF analysis requires a high/xhigh VLM pipeline")
         infer_started_at = time.perf_counter()

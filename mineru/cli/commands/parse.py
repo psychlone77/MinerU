@@ -97,6 +97,7 @@ def parse_cmd(
     no_wait: bool = typer.Option(False, "--no-wait", help=t("Don't wait — return immediately")),
     output: str = typer.Option(None, "-o", "--output", help=t("Output path; creates parent directories")),
     no_marker: bool = typer.Option(False, "--no-marker", help=t("Omit document structure markers from output")),
+    lang: str | None = typer.Option(None, "-l", "--lang", help=t("Document language for OCR extraction (e.g. 'sin', 'ch')")),
     json_mode: bool = typer.Option(False, "--json", help=t("JSON output")),
     verbose: bool = typer.Option(False, "-v", "--verbose", help=t("Verbose output")),
 ) -> None:
@@ -118,6 +119,7 @@ def parse_cmd(
             no_wait=no_wait,
             output=output,
             no_marker=no_marker,
+            lang=lang,
             json_mode=json_mode,
             verbose=verbose,
             explicit_tier=tier is not None,
@@ -142,6 +144,7 @@ def _parse(
     no_wait: bool,
     output: str | None,
     no_marker: bool,
+    lang: str | None,
     json_mode: bool,
     verbose: bool,
     explicit_tier: bool,
@@ -166,6 +169,7 @@ def _parse(
             page_range=pages,
             force=force,
             remote=remote,
+            lang=lang,
         )
     )
 

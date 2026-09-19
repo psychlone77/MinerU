@@ -52,6 +52,7 @@ _DEVANAGARI_LANG_ALIASES = {
     "sa",
     "bgc",
 }
+_SIN_LANG_ALIASES = {"sin", "sinhala", "si"}
 
 
 def normalize_ocr_model_lang(
@@ -61,11 +62,13 @@ def normalize_ocr_model_lang(
     supported_langs: Collection[str] | None = None,
 ) -> str:
     """将 OCR 语言参数归一为模型配置 key，保留内部 seal 与语系短码能力。"""
-    normalized_lang = lang or "ch"
+    normalized_lang = (lang or "ch").strip().lower()
     if normalized_lang in _CH_LANG_ALIASES:
         normalized_lang = "ch"
     # elif device == "cpu" and normalized_lang == "seal":
     #     normalized_lang = "seal_lite"
+    elif normalized_lang in _SIN_LANG_ALIASES:
+        normalized_lang = "sin"
     elif normalized_lang in _EAST_SLAVIC_LANG_ALIASES:
         normalized_lang = "east_slavic"
     elif normalized_lang in _ARABIC_LANG_ALIASES:

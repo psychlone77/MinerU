@@ -39,6 +39,7 @@ def doc_analyze(
     source_context: HtmlSourceContext | None = None,
     vlm_config: VlmConfig | None = None,
     source_properties: DocumentProperties | None = None,
+    lang: str | None = None,
 ) -> tuple[MiddleJson, ModelJson]:
     """生产严格 ModelJson，并在统一边界构造严格 MiddleJson。"""
     configure_global_log_level()
@@ -56,6 +57,7 @@ def doc_analyze(
             parse_mode=parse_mode,
             image_analysis=image_analysis,
             vlm_config=vlm_config,
+            lang=lang,
         )
     elif file_suffix in ("csv", "tsv"):
         from .analysis.csv import analyze_csv
@@ -98,6 +100,7 @@ async def aio_doc_analyze(
     source_context: HtmlSourceContext | None = None,
     vlm_config: VlmConfig | None = None,
     source_properties: DocumentProperties | None = None,
+    lang: str | None = None,
 ) -> tuple[MiddleJson, ModelJson]:
     """vLLM/HTTP 的 PDF 分析使用原生异步编排，其余路径保持受控线程回退。"""
     configure_global_log_level()
@@ -119,6 +122,7 @@ async def aio_doc_analyze(
             source_context=source_context,
             vlm_config=vlm_config,
             source_properties=source_properties,
+            lang=lang,
         )
     if source_properties is None:
         source_properties = await run_sync(read_source_properties, file_bytes, file_suffix, source_context)
@@ -131,6 +135,7 @@ async def aio_doc_analyze(
         parse_mode=parse_mode,
         image_analysis=image_analysis,
         vlm_config=vlm_config,
+        lang=lang,
     )
     model_json = await run_sync(_build_model_json, result, file_suffix, page_index_map, source_properties)
     middle_json = await aio_model_json_to_middle_json(model_json, llm_aided_config=config.llm_aided)

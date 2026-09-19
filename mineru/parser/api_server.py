@@ -477,6 +477,7 @@ class CreateJobRequest(BaseModel):
     ocr_mode: Literal["auto", "txt", "ocr"] = Field(
         default="auto", description="OCR mode for this parse job: auto-detect, native text, or forced OCR."
     )
+    lang: str = Field(default="ch", description="Language for OCR text extraction (e.g. 'ch', 'sin', 'en').")
     output_formats: list[str] = ["markdown"]
     callback: CallbackConfig | None = None
 
@@ -1487,6 +1488,7 @@ async def _run_job(
                     page_range=page_range,
                     source_context=source_context,
                     vlm_config=vlm_config,
+                    lang=req.lang,
                 )
 
                 if rec.status == "canceled":

@@ -99,6 +99,7 @@ class ParseRequest(DoclibModel):
     page_range: str | None = Field(default=None, description=PAGE_RANGE_DESCRIPTION)
     force: bool = False
     remote: bool = False
+    lang: str | None = Field(default=None, description="Document language for OCR extraction, e.g. 'sin', 'ch', 'en'.")
 
 
 class ParseResponse(DoclibModel):

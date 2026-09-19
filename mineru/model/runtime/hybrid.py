@@ -34,7 +34,9 @@ LOCAL_MODEL_MFR_INFERENCE_LOCK = threading.RLock()
 LOCAL_MODEL_OCR_INFERENCE_LOCK = threading.RLock()
 
 
-def _read_bool_env(primary_name: str, fallback_name: str | None = None, default: bool = False) -> bool:
+def _read_bool_env(
+    primary_name: str, fallback_name: str | None = None, default: bool = False
+) -> bool:
     """读取布尔环境变量；新变量未配置时回退到旧变量，保持已有部署兼容。"""
     raw_value = os.getenv(primary_name)
     if raw_value is None and fallback_name is not None:
@@ -53,7 +55,10 @@ LOCAL_MODEL_INFERENCE_LOCKS_ENABLED = _read_bool_env(
 
 
 def _run_with_inference_lock(
-    inference_lock: threading.RLock, inference_callable: Callable[..., Any], *args: Any, **kwargs: Any
+    inference_lock: threading.RLock,
+    inference_callable: Callable[..., Any],
+    *args: Any,
+    **kwargs: Any,
 ) -> object:
     """按实验开关决定是否在指定推理锁内执行真实 native 模型调用。"""
     if not LOCAL_MODEL_INFERENCE_LOCKS_ENABLED:
@@ -63,19 +68,31 @@ def _run_with_inference_lock(
         return inference_callable(*args, **kwargs)
 
 
-def run_layout_inference(inference_callable: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+def run_layout_inference(
+    inference_callable: Callable[..., Any], *args: Any, **kwargs: Any
+) -> Any:
     """按实验开关执行共享 Layout 模型调用。"""
-    return _run_with_inference_lock(LOCAL_MODEL_LAYOUT_INFERENCE_LOCK, inference_callable, *args, **kwargs)
+    return _run_with_inference_lock(
+        LOCAL_MODEL_LAYOUT_INFERENCE_LOCK, inference_callable, *args, **kwargs
+    )
 
 
-def run_mfr_inference(inference_callable: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+def run_mfr_inference(
+    inference_callable: Callable[..., Any], *args: Any, **kwargs: Any
+) -> Any:
     """按实验开关执行共享 MFR 模型调用。"""
-    return _run_with_inference_lock(LOCAL_MODEL_MFR_INFERENCE_LOCK, inference_callable, *args, **kwargs)
+    return _run_with_inference_lock(
+        LOCAL_MODEL_MFR_INFERENCE_LOCK, inference_callable, *args, **kwargs
+    )
 
 
-def run_ocr_inference(inference_callable: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+def run_ocr_inference(
+    inference_callable: Callable[..., Any], *args: Any, **kwargs: Any
+) -> Any:
     """按实验开关执行共享 OCR native 模型调用。"""
-    return _run_with_inference_lock(LOCAL_MODEL_OCR_INFERENCE_LOCK, inference_callable, *args, **kwargs)
+    return _run_with_inference_lock(
+        LOCAL_MODEL_OCR_INFERENCE_LOCK, inference_callable, *args, **kwargs
+    )
 
 
 def table_orientation_cls_model_init(
@@ -98,11 +115,16 @@ def table_orientation_cls_model_init(
 
 def table_cls_model_init(small_backend: str | None = None) -> PaddleTableClsModel:
     """初始化有线与无线表格类型分类模型。"""
-    return PaddleTableClsModel(model_path=str(small_model_repo(small_backend).paddle_table_cls.ensure()))
+    return PaddleTableClsModel(
+        model_path=str(small_model_repo(small_backend).paddle_table_cls.ensure())
+    )
 
 
 def wired_table_model_init(
-    lang: str | None = None, *, small_backend: str | None = None, device: str | None = None
+    lang: str | None = None,
+    *,
+    small_backend: str | None = None,
+    device: str | None = None,
 ) -> UnetTableModel:
     """初始化有线表格识别模型，并注入指定语言的 OCR 引擎。"""
     atom_model_manager = AtomModelSingleton()
@@ -115,12 +137,18 @@ def wired_table_model_init(
         lang=lang,
         enable_merge_det_boxes=False,
     )
-    table_model = UnetTableModel(ocr_engine, model_path=str(small_model_repo(small_backend).unet_structure.ensure()))
+    table_model = UnetTableModel(
+        ocr_engine,
+        model_path=str(small_model_repo(small_backend).unet_structure.ensure()),
+    )
     return table_model
 
 
 def wireless_table_model_init(
-    lang: str | None = None, *, small_backend: str | None = None, device: str | None = None
+    lang: str | None = None,
+    *,
+    small_backend: str | None = None,
+    device: str | None = None,
 ) -> PaddleTableModel:
     """初始化无线表格识别模型，并注入指定语言的 OCR 引擎。"""
     atom_model_manager = AtomModelSingleton()
@@ -133,7 +161,9 @@ def wireless_table_model_init(
         lang=lang,
         enable_merge_det_boxes=False,
     )
-    table_model = PaddleTableModel(ocr_engine, model_path=str(small_model_repo(small_backend).slanet_plus.ensure()))
+    table_model = PaddleTableModel(
+        ocr_engine, model_path=str(small_model_repo(small_backend).slanet_plus.ensure())
+    )
     return table_model
 
 
@@ -144,7 +174,9 @@ def mfr_model_init(weight_dir: str, device: str = "cpu") -> "FormulaRecognizer":
     return FormulaRecognizer(weight_dir, device, model_name="PP-FormulaNet_plus-M")
 
 
-def pp_doclayout_v2_model_init(weight: str, device: str = "cpu") -> "PPDocLayoutV2LayoutModel":
+def pp_doclayout_v2_model_init(
+    weight: str, device: str = "cpu"
+) -> "PPDocLayoutV2LayoutModel":
     """在指定设备上初始化 PP-DocLayoutV2 版面分析模型。"""
 
     from ..layout.pp_doclayoutv2 import PPDocLayoutV2LayoutModel
@@ -163,14 +195,25 @@ def ocr_model_init(
     det_db_unclip_ratio: float = 1.5,
     enable_merge_det_boxes: bool = True,
     device: str | None = None,
-) -> "PytorchPaddleOCR":
-    """按语言和检测阈值初始化本地 Paddle OCR 模型。"""
+) -> Any:
+    """按语言和检测阈值初始化本地 OCR 模型（Paddle 或 Tesseract）。"""
+    norm_lang = normalize_ocr_model_lang(lang)
+    if norm_lang == "sin":
+        from ..ocr.tesseract_ocr import TesseractOCR
+
+        return TesseractOCR(
+            lang="sin+eng",
+            device=device,
+            det_db_box_thresh=det_db_box_thresh,
+            det_db_unclip_ratio=det_db_unclip_ratio,
+            enable_merge_det_boxes=enable_merge_det_boxes,
+        )
 
     from ..ocr.pytorch_paddle import PytorchPaddleOCR
 
     ocr_kwargs = {
         "device": device,
-        "lang": normalize_ocr_model_lang(lang),
+        "lang": norm_lang,
         "det_db_box_thresh": det_db_box_thresh,
         "det_db_unclip_ratio": det_db_unclip_ratio,
         "enable_merge_det_boxes": enable_merge_det_boxes,
@@ -195,12 +238,17 @@ class AtomModelSingleton:
     def get_atom_model(self, atom_model_name: str, **kwargs: Any) -> Any:
         """根据模型名称和关键配置生成缓存键，并获取对应原子模型。"""
         small_backend = resolve_small_model_backend(kwargs.get("small_backend"))
-        device = "cpu" if small_backend == "onnx" else (kwargs.get("device") or get_device())
+        device = (
+            "cpu" if small_backend == "onnx" else (kwargs.get("device") or get_device())
+        )
         kwargs = {**kwargs, "small_backend": small_backend, "device": device}
         lang = kwargs.get("lang", None)
         ocr_singleton_lang = normalize_ocr_model_lang(lang)
 
-        if atom_model_name in [AtomicModelName.WiredTable, AtomicModelName.WirelessTable]:
+        if atom_model_name in [
+            AtomicModelName.WiredTable,
+            AtomicModelName.WirelessTable,
+        ]:
             key = (atom_model_name, ocr_singleton_lang)
         elif atom_model_name in [AtomicModelName.OCR]:
             key = (
@@ -221,7 +269,9 @@ class AtomModelSingleton:
         key = (small_backend, device, key)
         with self._lock:
             if key not in self._models:
-                self._models[key] = atom_model_init(model_name=atom_model_name, **kwargs)
+                self._models[key] = atom_model_init(
+                    model_name=atom_model_name, **kwargs
+                )
         return self._models[key]
 
 
@@ -250,8 +300,12 @@ def atom_model_init(model_name: str, **kwargs: Any) -> Any:
             from ..mfr.pp_formulanet_plus_m_onnx import PPFormulaNetPlusMONNX
 
             atom_model = PPFormulaNetPlusMONNX(
-                model_path=str(MINERU_4_MODELS_ONNX.pp_formulanet_plus_m_weights.ensure()),
-                config_path=str(MINERU_4_MODELS_ONNX.pp_formulanet_plus_m_config.ensure()),
+                model_path=str(
+                    MINERU_4_MODELS_ONNX.pp_formulanet_plus_m_weights.ensure()
+                ),
+                config_path=str(
+                    MINERU_4_MODELS_ONNX.pp_formulanet_plus_m_config.ensure()
+                ),
                 device=kwargs.get("device"),
             )
         else:
@@ -265,17 +319,32 @@ def atom_model_init(model_name: str, **kwargs: Any) -> Any:
                 kwargs.get("device"),
             )
     elif model_name == AtomicModelName.OCR:
-        if small_backend == "onnx":
+        norm_lang = normalize_ocr_model_lang(kwargs.get("lang"))
+        if norm_lang == "sin":
+            from ..ocr.tesseract_ocr import TesseractOCR
+
+            atom_model = TesseractOCR(
+                lang="sin+eng",
+                device=kwargs.get("device"),
+                small_backend=small_backend,
+                det_db_box_thresh=kwargs.get("det_db_box_thresh", 0.5),
+                det_db_unclip_ratio=kwargs.get("det_db_unclip_ratio", 1.5),
+                enable_merge_det_boxes=kwargs.get("enable_merge_det_boxes", True),
+            )
+        elif small_backend == "onnx":
             from ..ocr.pp_ocr_v6_onnx import PPOCRv6ONNX
 
-            lang = normalize_ocr_model_lang(kwargs.get("lang"))
-            detector = MINERU_4_MODELS_ONNX.seal_det if lang == "seal" else MINERU_4_MODELS_ONNX.ocr_det
+            detector = (
+                MINERU_4_MODELS_ONNX.seal_det
+                if norm_lang == "seal"
+                else MINERU_4_MODELS_ONNX.ocr_det
+            )
 
             atom_model = PPOCRv6ONNX(
                 det_model_path=str(detector.ensure()),
                 rec_model_path=str(MINERU_4_MODELS_ONNX.ocr_rec.ensure()),
                 dict_path=str(PPOCRV6_DICT_PATH),
-                lang=lang,
+                lang=norm_lang,
                 device=kwargs.get("device"),
                 det_db_box_thresh=kwargs.get("det_db_box_thresh", 0.5),
                 det_db_unclip_ratio=kwargs.get("det_db_unclip_ratio", 1.5),
@@ -304,7 +373,9 @@ def atom_model_init(model_name: str, **kwargs: Any) -> Any:
     elif model_name == AtomicModelName.TableCls:
         atom_model = table_cls_model_init(small_backend=small_backend)
     elif model_name == AtomicModelName.TableOrientationCls:
-        atom_model = table_orientation_cls_model_init(small_backend=small_backend, device=kwargs.get("device"))
+        atom_model = table_orientation_cls_model_init(
+            small_backend=small_backend, device=kwargs.get("device")
+        )
     else:
         logger.error("model name not allow")
         exit(1)
@@ -320,7 +391,7 @@ class HybridLocalModelContextSingleton:
     """全局缓存并复用 Hybrid 本地模型上下文。"""
 
     _instance: HybridLocalModelContextSingleton | None = None
-    _models: dict[tuple[str, str], HybridLocalModelContext] = {}
+    _models: dict[tuple[str, str, str], HybridLocalModelContext] = {}
     _lock: threading.RLock = LOCAL_MODEL_INIT_LOCK
 
     def __new__(cls, *args: Any, **kwargs: Any) -> HybridLocalModelContextSingleton:
@@ -332,14 +403,18 @@ class HybridLocalModelContextSingleton:
 
     def get_model(
         self,
+        lang: str | None = None,
     ) -> HybridLocalModelContext:
-        """按小模型后端与实际设备缓存上下文，避免切换配置后混用模型。"""
+        """按小模型后端、实际设备与语言缓存上下文，避免切换配置后混用模型。"""
         small_backend = resolve_small_model_backend()
         device = "cpu" if small_backend == "onnx" else get_device()
-        key = (small_backend, device)
+        norm_lang = normalize_ocr_model_lang(lang)
+        key = (small_backend, device, norm_lang)
         with self._lock:
             if key not in self._models:
-                self._models[key] = HybridLocalModelContext(device=device, small_backend=small_backend)
+                self._models[key] = HybridLocalModelContext(
+                    device=device, small_backend=small_backend, lang=norm_lang
+                )
             return self._models[key]
 
 
@@ -373,11 +448,17 @@ class HybridLocalModelContext:
         device: str | None = None,
         *,
         small_backend: str | None = None,
+        lang: str | None = None,
     ) -> None:
         """初始化 Hybrid 基础运行时，其他模型在首次访问对应属性时加载。"""
         self.small_backend = resolve_small_model_backend(small_backend)
-        self.device = "cpu" if self.small_backend == "onnx" else (device or get_device())
-        self.enable_ocr_det_batch = True if self.small_backend == "onnx" else ocr_det_batch_setting()
+        self.device = (
+            "cpu" if self.small_backend == "onnx" else (device or get_device())
+        )
+        self.lang = normalize_ocr_model_lang(lang)
+        self.enable_ocr_det_batch = (
+            True if self.small_backend == "onnx" else ocr_det_batch_setting()
+        )
 
         if str(self.device).startswith("npu"):
             try:
@@ -434,14 +515,16 @@ class HybridLocalModelContext:
         det_db_box_thresh: float = 0.5,
         det_db_unclip_ratio: float = 1.5,
         enable_merge_det_boxes: bool = True,
-    ) -> "PytorchPaddleOCR":
+        lang: str | None = None,
+    ) -> Any:
         """获取 OCR 原子模型，默认使用当前 Hybrid 本地上下文语言并复用 singleton 缓存。"""
+        effective_lang = normalize_ocr_model_lang(lang or self.lang)
         return self.atom_model_manager.get_atom_model(
             small_backend=self.small_backend,
             device=self.device,
             atom_model_name=AtomicModelName.OCR,
             det_db_box_thresh=det_db_box_thresh,
-            lang="ch",
+            lang=effective_lang,
             det_db_unclip_ratio=det_db_unclip_ratio,
             enable_merge_det_boxes=enable_merge_det_boxes,
         )
@@ -468,7 +551,7 @@ class HybridLocalModelContext:
             small_backend=self.small_backend,
             device=self.device,
             atom_model_name=AtomicModelName.WirelessTable,
-            lang="ch",
+            lang=self.lang,
         )
 
     def get_wired_table_model(self) -> UnetTableModel:
@@ -477,7 +560,7 @@ class HybridLocalModelContext:
             small_backend=self.small_backend,
             device=self.device,
             atom_model_name=AtomicModelName.WiredTable,
-            lang="ch",
+            lang=self.lang,
         )
 
     def get_table_cls_model(self) -> PaddleTableClsModel:

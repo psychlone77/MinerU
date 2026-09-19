@@ -1,0 +1,40 @@
+# Dockerfile for MinerU with Sinhala (sin) Tesseract OCR + VLM Layout Detection on NVIDIA GPUs
+# Base image uses vLLM with CUDA for modern NVIDIA architectures (Ampere, Ada, Hopper, Blackwell)
+FROM vllm/vllm-openai:v0.21.0
+
+# Install OpenCV and Tesseract system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libgl1 \
+        tesseract-ocr \
+        libtesseract-dev \
+        curl \
+        ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Pre-install Sinhala and English tessdata_best models for high-accuracy OCR
+RUN mkdir -p /usr/share/tessdata && \
+    curl -fL -o /usr/share/tessdata/sin.traineddata https://github.com/tesseract-ocr/tessdata_best/raw/main/sin.traineddata && \
+    curl -fL -o /usr/share/tessdata/eng.traineddata https://github.com/tesseract-ocr/tessdata_best/raw/main/eng.traineddata
+
+ENV TESSDATA_PREFIX=/usr/share/tessdata
+
+# Copy repository source code and install MinerU with Torch support
+WORKDIR /app/MinerU
+COPY . /app/MinerU
+RUN python3 -m pip install --no-cache-dir -e '.[torch]' --break-system-packages
+
+# Align build-time model downloads and runtime engine selection
+ENV MINERU_MODEL_SMALL_BACKEND=torch \
+    MINERU_MODEL_VLM_ENGINE=vllm
+
+# Pre-download standard tier models (VLM weights + Torch models) from Hugging Face
+RUN /bin/bash -c "mineru-kit models download --tier standard --small-backend torch --vlm-engine vllm -s huggingface"
+
+# Expose API server port
+EXPOSE 8000
+
+# Set entry point
+ENTRYPOINT ["/bin/bash", "-c", "export MINERU_MODEL_SOURCE=local && exec \"$@\"", "--"]
+CMD ["mineru-kit", "api-server", "--host", "0.0.0.0", "--port", "8000"]

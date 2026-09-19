@@ -48,6 +48,7 @@ def parse_cmd(
     api_key: str | None = typer.Option(None, "--api-key", help=t("API key for remote parse service")),
     ocr_mode: str = typer.Option("auto", "--ocr-mode", help=t("OCR mode: auto, txt, ocr")),
     disable_image_analysis: bool = typer.Option(False, "--disable-image-analysis", help=t("Disable image analysis")),
+    lang: str = typer.Option("ch", "-l", "--lang", help=t("Document language for OCR extraction (e.g. 'sin', 'ch')")),
 ) -> None:
     """Parse files or directories into markdown, middle JSON, or zip outputs."""
     try:
@@ -82,7 +83,7 @@ def parse_cmd(
         exit_with_message("invalid_request", str(exc))
 
     if api_url:
-        parser = MinerUApiParser(api_url=api_url, api_key=api_key, tier=parse_tier, include_images=True)
+        parser = MinerUApiParser(api_url=api_url, api_key=api_key, tier=parse_tier, include_images=True, lang=lang)
         parse_one = partial(parser.parse, page_range=pages or "")
     else:
         is_batch = has_directory_input or len(paths) > 1
@@ -99,6 +100,7 @@ def parse_cmd(
                 ocr_mode=parse_ocr_mode,
                 image_analysis=not disable_image_analysis,
                 page_range=pages or "",
+                lang=lang,
             )
 
     for path in paths:
