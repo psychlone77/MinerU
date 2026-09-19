@@ -43,6 +43,12 @@ def doc_analyze(
 ) -> tuple[MiddleJson, ModelJson]:
     """生产严格 ModelJson，并在统一边界构造严格 MiddleJson。"""
     configure_global_log_level()
+    from ..model.ocr.language import normalize_ocr_model_lang
+
+    norm_lang = normalize_ocr_model_lang(lang)
+    if norm_lang == "sin" and effort in {"high", "xhigh"}:
+        effort = "medium"
+
     _validate_analyze(effort, file_suffix, page_index_map)
 
     if source_properties is None:
@@ -104,6 +110,12 @@ async def aio_doc_analyze(
 ) -> tuple[MiddleJson, ModelJson]:
     """vLLM/HTTP 的 PDF 分析使用原生异步编排，其余路径保持受控线程回退。"""
     configure_global_log_level()
+    from ..model.ocr.language import normalize_ocr_model_lang
+
+    norm_lang = normalize_ocr_model_lang(lang)
+    if norm_lang == "sin" and effort in {"high", "xhigh"}:
+        effort = "medium"
+
     _validate_analyze(effort, file_suffix, page_index_map)
     native_async = False
     if file_suffix == "pdf" and effort in {"high", "xhigh"}:

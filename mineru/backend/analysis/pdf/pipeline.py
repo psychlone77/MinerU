@@ -59,7 +59,10 @@ def _prepare_analysis(
     if not state.flash_txt_mode:
         state.hybrid_model = HybridLocalModelContextSingleton().get_model(lang=lang)
         acquire_document(state.hybrid_model.device)
-        if effort in {"high", "xhigh"}:
+        from ....model.ocr.language import normalize_ocr_model_lang
+
+        norm_lang = normalize_ocr_model_lang(lang)
+        if norm_lang != "sin" and effort in {"high", "xhigh"}:
             state.predictor, _backend = get_vlm_predictor(vlm_config)
 
 
@@ -87,19 +90,23 @@ def analyze_pdf(
     """使用共享资源生命周期与同步窗口编排生产 PDF 模型结果。"""
     state = _PDFAnalysis()
     try:
-        _prepare_analysis(state, file_bytes, effort, parse_mode, vlm_config, lang=lang)
+        from ....model.ocr.language import normalize_ocr_model_lang
+
+        norm_lang = normalize_ocr_model_lang(lang)
+        effective_effort = "medium" if norm_lang == "sin" and effort in {"high", "xhigh"} else effort
+        _prepare_analysis(state, file_bytes, effective_effort, parse_mode, vlm_config, lang=lang)
         infer_started_at = time.perf_counter()
         model_list = process_pdf_windows(
             file_bytes,
             state.document,
-            effort=effort,
+            effort=effective_effort,
             parse_mode=state.parse_mode,
             image_analysis=image_analysis,
             flash_txt_mode=state.flash_txt_mode,
             hybrid_model=state.hybrid_model,
             vlm_predictor=state.predictor,
         )
-        result = _build_pdf_analysis_result(state, model_list, effort, infer_started_at)
+        result = _build_pdf_analysis_result(state, model_list, effective_effort, infer_started_at)
     finally:
         _close_analysis(state)
     return result
