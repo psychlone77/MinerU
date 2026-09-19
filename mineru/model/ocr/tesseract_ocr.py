@@ -145,7 +145,7 @@ class _TesseractCtypesRunner:
         lib.TessBaseAPISetVariable.restype = ctypes.c_int
         lib.TessBaseAPISetVariable.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
 
-        lib.TessBaseAPIGetUTF8Text.restype = ctypes.c_char_p
+        lib.TessBaseAPIGetUTF8Text.restype = ctypes.c_void_p
         lib.TessBaseAPIGetUTF8Text.argtypes = [ctypes.c_void_p]
 
         lib.TessBaseAPIMeanTextConf.restype = ctypes.c_int
@@ -154,9 +154,13 @@ class _TesseractCtypesRunner:
         lib.TessBaseAPIDelete.restype = None
         lib.TessBaseAPIDelete.argtypes = [ctypes.c_void_p]
 
+        if hasattr(lib, "TessBaseAPIClear"):
+            lib.TessBaseAPIClear.restype = None
+            lib.TessBaseAPIClear.argtypes = [ctypes.c_void_p]
+
         if hasattr(lib, "TessDeleteText"):
             lib.TessDeleteText.restype = None
-            lib.TessDeleteText.argtypes = [ctypes.c_char_p]
+            lib.TessDeleteText.argtypes = [ctypes.c_void_p]
 
     def _init_api(self) -> ctypes.c_void_p:
         api = self._lib.TessBaseAPICreate()
@@ -200,12 +204,17 @@ class _TesseractCtypesRunner:
         text_ptr = self._lib.TessBaseAPIGetUTF8Text(self._api)
         conf_int = self._lib.TessBaseAPIMeanTextConf(self._api)
 
-        text = text_ptr.decode("utf-8", errors="replace").strip() if text_ptr else ""
+        text = ""
+        if text_ptr:
+            raw_bytes = ctypes.string_at(text_ptr)
+            text = raw_bytes.decode("utf-8", errors="replace").strip()
+            if hasattr(self._lib, "TessDeleteText"):
+                self._lib.TessDeleteText(text_ptr)
+
+        if hasattr(self._lib, "TessBaseAPIClear"):
+            self._lib.TessBaseAPIClear(self._api)
+
         score = max(0.0, min(1.0, float(conf_int) / 100.0))
-
-        if text_ptr and hasattr(self._lib, "TessDeleteText"):
-            self._lib.TessDeleteText(text_ptr)
-
         return text, score
 
     def close(self) -> None:
