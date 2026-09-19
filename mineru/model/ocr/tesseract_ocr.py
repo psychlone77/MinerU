@@ -130,7 +130,11 @@ class _TesseractCtypesRunner:
         lib.TessBaseAPICreate.argtypes = []
 
         lib.TessBaseAPIInit3.restype = ctypes.c_int
-        lib.TessBaseAPIInit3.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+        lib.TessBaseAPIInit3.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_char_p,
+            ctypes.c_char_p,
+        ]
 
         lib.TessBaseAPISetImage.restype = None
         lib.TessBaseAPISetImage.argtypes = [
@@ -143,7 +147,11 @@ class _TesseractCtypesRunner:
         ]
 
         lib.TessBaseAPISetVariable.restype = ctypes.c_int
-        lib.TessBaseAPISetVariable.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+        lib.TessBaseAPISetVariable.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_char_p,
+            ctypes.c_char_p,
+        ]
 
         lib.TessBaseAPIGetUTF8Text.restype = ctypes.c_void_p
         lib.TessBaseAPIGetUTF8Text.argtypes = [ctypes.c_void_p]
@@ -153,6 +161,13 @@ class _TesseractCtypesRunner:
 
         lib.TessBaseAPIDelete.restype = None
         lib.TessBaseAPIDelete.argtypes = [ctypes.c_void_p]
+
+        if hasattr(lib, "TessBaseAPISetSourceResolution"):
+            lib.TessBaseAPISetSourceResolution.restype = None
+            lib.TessBaseAPISetSourceResolution.argtypes = [
+                ctypes.c_void_p,
+                ctypes.c_int,
+            ]
 
         if hasattr(lib, "TessBaseAPIClear"):
             lib.TessBaseAPIClear.restype = None
@@ -201,6 +216,8 @@ class _TesseractCtypesRunner:
         raw_ptr = contiguous_data.ctypes.data_as(ctypes.c_char_p)
 
         self._lib.TessBaseAPISetImage(self._api, raw_ptr, width, height, bytes_per_pixel, bytes_per_line)
+        if hasattr(self._lib, "TessBaseAPISetSourceResolution"):
+            self._lib.TessBaseAPISetSourceResolution(self._api, 300)
         text_ptr = self._lib.TessBaseAPIGetUTF8Text(self._api)
         conf_int = self._lib.TessBaseAPIMeanTextConf(self._api)
 
@@ -253,6 +270,8 @@ class _TesseractSubprocessRunner:
             self.lang,
             "--tessdata-dir",
             self.tessdata_dir,
+            "--dpi",
+            "300",
             "--psm",
             "7",
             "tsv",
@@ -344,7 +363,10 @@ class TesseractOCR:
             )
             logger.debug("TesseractOCR initialized via libtesseract ctypes runner.")
         except Exception as exc:
-            logger.warning("libtesseract ctypes initialization failed ({}). Falling back to subprocess CLI.", exc)
+            logger.warning(
+                "libtesseract ctypes initialization failed ({}). Falling back to subprocess CLI.",
+                exc,
+            )
             self.runner = _TesseractSubprocessRunner(self.resolved_tessdata_dir, lang=lang)
 
         self.text_recognizer = TesseractRecognizer(self.runner)
@@ -370,7 +392,10 @@ class TesseractOCR:
                 unclip_ratio=kwargs.get("det_db_unclip_ratio", 1.5),
             )
 
-        from .._internal.pytorchocr.infer import predict_det, pytorchocr_utility as utility
+        from .._internal.pytorchocr.infer import (
+            predict_det,
+            pytorchocr_utility as utility,
+        )
         from ..registry import MINERU_4_MODELS_TORCH
         import argparse
 
