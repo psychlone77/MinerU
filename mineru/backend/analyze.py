@@ -52,7 +52,9 @@ def doc_analyze(
     _validate_analyze(effort, file_suffix, page_index_map)
 
     if source_properties is None:
-        source_properties = read_source_properties(file_bytes, file_suffix, source_context)
+        source_properties = read_source_properties(
+            file_bytes, file_suffix, source_context
+        )
 
     if file_suffix == "pdf":
         from .analysis.pdf.pipeline import analyze_pdf
@@ -86,7 +88,9 @@ def doc_analyze(
 
         result = analyze_office(file_bytes, cast(OfficeSuffix, file_suffix))
 
-    model_json = _build_model_json(result, file_suffix, page_index_map, source_properties)
+    model_json = _build_model_json(
+        result, file_suffix, page_index_map, source_properties
+    )
     from .postprocess.document import model_json_to_middle_json
 
     middle_json = model_json_to_middle_json(
@@ -137,7 +141,9 @@ async def aio_doc_analyze(
             lang=lang,
         )
     if source_properties is None:
-        source_properties = await run_sync(read_source_properties, file_bytes, file_suffix, source_context)
+        source_properties = await run_sync(
+            read_source_properties, file_bytes, file_suffix, source_context
+        )
     from .analysis.pdf.pipeline import aio_analyze_pdf
     from .postprocess.document import aio_model_json_to_middle_json
 
@@ -149,17 +155,25 @@ async def aio_doc_analyze(
         vlm_config=vlm_config,
         lang=lang,
     )
-    model_json = await run_sync(_build_model_json, result, file_suffix, page_index_map, source_properties)
-    middle_json = await aio_model_json_to_middle_json(model_json, llm_aided_config=config.llm_aided)
+    model_json = await run_sync(
+        _build_model_json, result, file_suffix, page_index_map, source_properties
+    )
+    middle_json = await aio_model_json_to_middle_json(
+        model_json, llm_aided_config=config.llm_aided
+    )
     return middle_json, model_json
 
 
-def _validate_analyze(effort: AnalyzeEffort, file_suffix: FileSuffix, page_index_map: list[int] | None) -> None:
+def _validate_analyze(
+    effort: AnalyzeEffort, file_suffix: FileSuffix, page_index_map: list[int] | None
+) -> None:
     """在加载重依赖之前统一验证同步、异步入口参数。"""
     if file_suffix not in FILE_SUFFIXES:
         raise ValueError(f"Unsupported file suffix: {file_suffix!r}")
     if file_suffix != "pdf" and page_index_map:
-        raise ValueError(f"page_index_map is only supported for PDF files, got {file_suffix!r}")
+        raise ValueError(
+            f"page_index_map is only supported for PDF files, got {file_suffix!r}"
+        )
     if effort not in _SUPPORTED_ANALYZE_EFFORTS:
         raise ValueError(f"Unsupported analyze effort: {effort}")
 
@@ -174,9 +188,14 @@ def _build_model_json(
     _log_infer_performance(file_suffix, len(result.model_list), result.elapsed)
     extensions = build_metadata(effort=result.effort, parse_mode=result.parse_mode)
     if file_suffix == "pdf" and result.layout_geometry is not None:
-        from docvortex.document.pdf.layout import LAYOUT_EXTENSION, remap_layout_geometry
+        from docvortex.document.pdf.layout import (
+            LAYOUT_EXTENSION,
+            remap_layout_geometry,
+        )
 
-        extensions[LAYOUT_EXTENSION] = remap_layout_geometry(result.layout_geometry, page_index_map)
+        extensions[LAYOUT_EXTENSION] = remap_layout_geometry(
+            result.layout_geometry, page_index_map
+        )
     return ModelJson(
         pages=result.model_list,
         page_index_map=page_index_map or [],

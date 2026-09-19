@@ -14,7 +14,10 @@ from ....config import VlmConfig
 from ....model.runtime.execution import acquire_document, release_document
 from ....utils.async_utils import run_sync
 from ....model.vlm.contracts import VlmPredictor
-from ....model.runtime.hybrid import HybridLocalModelContext, HybridLocalModelContextSingleton
+from ....model.runtime.hybrid import (
+    HybridLocalModelContext,
+    HybridLocalModelContextSingleton,
+)
 from ....model.runtime.memory import clean_memory, trim_process_heap
 from ....model.vlm.client import get_vlm_predictor
 from ..contracts import AnalysisResult, AnalyzeEffort, ParseMode, ResolvedParseMode
@@ -93,8 +96,12 @@ def analyze_pdf(
         from ....model.ocr.language import normalize_ocr_model_lang
 
         norm_lang = normalize_ocr_model_lang(lang)
-        effective_effort = "medium" if norm_lang == "sin" and effort in {"high", "xhigh"} else effort
-        _prepare_analysis(state, file_bytes, effective_effort, parse_mode, vlm_config, lang=lang)
+        effective_effort = (
+            "medium" if norm_lang == "sin" and effort in {"high", "xhigh"} else effort
+        )
+        _prepare_analysis(
+            state, file_bytes, effective_effort, parse_mode, vlm_config, lang=lang
+        )
         infer_started_at = time.perf_counter()
         model_list = process_pdf_windows(
             file_bytes,
@@ -106,7 +113,9 @@ def analyze_pdf(
             hybrid_model=state.hybrid_model,
             vlm_predictor=state.predictor,
         )
-        result = _build_pdf_analysis_result(state, model_list, effective_effort, infer_started_at)
+        result = _build_pdf_analysis_result(
+            state, model_list, effective_effort, infer_started_at
+        )
     finally:
         _close_analysis(state)
     return result
@@ -123,9 +132,23 @@ async def aio_analyze_pdf(
     """原生异步调度 VLM；同步准备、回填与清理使用取消安全的线程边界。"""
     state = _PDFAnalysis()
     try:
-        await run_sync(_prepare_analysis, state, file_bytes, effort, parse_mode, vlm_config, lang=lang)
-        if state.document is None or state.hybrid_model is None or state.predictor is None:
-            raise ValueError("Native async PDF analysis requires a high/xhigh VLM pipeline")
+        await run_sync(
+            _prepare_analysis,
+            state,
+            file_bytes,
+            effort,
+            parse_mode,
+            vlm_config,
+            lang=lang,
+        )
+        if (
+            state.document is None
+            or state.hybrid_model is None
+            or state.predictor is None
+        ):
+            raise ValueError(
+                "Native async PDF analysis requires a high/xhigh VLM pipeline"
+            )
         infer_started_at = time.perf_counter()
         model_list = await aio_process_pdf_windows(
             file_bytes,
@@ -136,7 +159,9 @@ async def aio_analyze_pdf(
             hybrid_model=state.hybrid_model,
             vlm_predictor=state.predictor,
         )
-        result = await run_sync(_build_pdf_analysis_result, state, model_list, effort, infer_started_at)
+        result = await run_sync(
+            _build_pdf_analysis_result, state, model_list, effort, infer_started_at
+        )
     finally:
         await run_sync(_close_analysis, state)
     return result
@@ -146,7 +171,10 @@ def _build_pdf_analysis_result(
     state: _PDFAnalysis, model_list: list, effort: AnalyzeEffort, started_at: float
 ) -> AnalysisResult:
     """规范化模型结果，并在关闭现有 PDF 之前汇集各档位页面几何与裁图方向。"""
-    from docvortex.document.pdf.layout import extract_layout_geometry, attach_layout_image_rotations
+    from docvortex.document.pdf.layout import (
+        extract_layout_geometry,
+        attach_layout_image_rotations,
+    )
 
     assert state.document is not None
     # 规范化会删除 angle 并过滤无效块，先按对象保存裁图方向，再按最终索引登记。
@@ -154,7 +182,10 @@ def _build_pdf_analysis_result(
     _normalize_pdf_model_list(model_list)
     elapsed = time.perf_counter() - started_at
     geometry, diagnostics = extract_layout_geometry(state.document, None)
-    rotation_pages = [[{**block, "angle": angles.get(id(block), 0)} for block in page] for page in model_list]
+    rotation_pages = [
+        [{**block, "angle": angles.get(id(block), 0)} for block in page]
+        for page in model_list
+    ]
     attach_layout_image_rotations(geometry, rotation_pages, None)
     for diagnostic in diagnostics:
         logger.warning("{}: {}", diagnostic.code, diagnostic.message)
