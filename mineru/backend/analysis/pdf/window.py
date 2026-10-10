@@ -253,6 +253,7 @@ def _process_text_and_formulas(
             inline_formula_list,
             np_images,
         )
+    if mfr_enable:
         # 将行间公式span回填入block
         _apply_medium_display_formula_results(
             model_list,
@@ -270,7 +271,7 @@ def _process_text_and_formulas(
     for page_model_list in model_list:
         page_model_list[:] = optimize_hybrid_formula_number_blocks(page_model_list)
 
-    need_rec_img = parse_mode == "ocr" and effort == "medium"
+    need_rec_img = parse_mode == "ocr"
     # vlm没有执行ocr，需要ocr_det
     ocr_res_list = _ocr_det(
         local_model_context,
@@ -539,7 +540,8 @@ def _inference_options(
         options["blocks_list"] = state.high_vlm_blocks
     if parse_mode == "txt":
         options["not_extract_list"] = NOT_EXTRACT_TYPES
-    return options
+    elif parse_mode == "ocr":
+        options["not_extract_list"] = NOT_EXTRACT_TYPES | {"equation"}
 
 
 def _process_pdf_window(
