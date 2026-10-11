@@ -40,6 +40,8 @@ class _OcrDetCrop:
 def _build_ocr_det_type_and_mfr_enable(
     parse_mode: Literal["txt", "ocr"],
     effort: Literal["medium", "high", "xhigh"],
+    *,
+    lang: str | None = None,
 ) -> tuple[set[str], bool]:
     """返回 OCR 检测块类型，以及是否需要执行小模型公式识别。"""
     if parse_mode not in ("txt", "ocr"):
@@ -51,7 +53,9 @@ def _build_ocr_det_type_and_mfr_enable(
         return PIPELINE_DET_TYPE, True
     if parse_mode == "txt":
         return VLM_TXT_DET_TYPE, True
-    return VLM_OCR_DET_TYPE, True
+    if lang == "sin":
+        return VLM_OCR_DET_TYPE, True
+    return VLM_OCR_DET_TYPE, False
 
 
 def _set_temp_pixel_bbox(res: dict[str, Any], pixel_bbox: list[int]) -> None:

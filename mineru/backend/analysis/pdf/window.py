@@ -217,6 +217,7 @@ def _process_text_and_formulas(
     ocr_det_type, mfr_enable = _build_ocr_det_type_and_mfr_enable(
         parse_mode=parse_mode,
         effort=effort,
+        lang=local_model_context.lang,
     )
 
     # 窗口持有独立页图数组；只有直接调用本阶段且未提供数组时才构建。
@@ -271,7 +272,7 @@ def _process_text_and_formulas(
     for page_model_list in model_list:
         page_model_list[:] = optimize_hybrid_formula_number_blocks(page_model_list)
 
-    need_rec_img = parse_mode == "ocr"
+    need_rec_img = parse_mode == "ocr" and (effort == "medium" or local_model_context.lang == "sin")
     # vlm没有执行ocr，需要ocr_det
     ocr_res_list = _ocr_det(
         local_model_context,
@@ -533,6 +534,8 @@ def _inference_options(
     effort: AnalyzeEffort,
     parse_mode: Literal["txt", "ocr"],
     image_analysis: bool,
+    *,
+    lang: str | None = None,
 ) -> dict[str, Any]:
     """生成同步、异步共同使用的抽取参数，保持 TXT 类型过滤与图片开关。"""
     options = {"images": state.images_pil_list, "image_analysis": image_analysis if effort == "xhigh" else False}
@@ -540,8 +543,9 @@ def _inference_options(
         options["blocks_list"] = state.high_vlm_blocks
     if parse_mode == "txt":
         options["not_extract_list"] = NOT_EXTRACT_TYPES
-    elif parse_mode == "ocr":
+    elif parse_mode == "ocr" and lang == "sin":
         options["not_extract_list"] = NOT_EXTRACT_TYPES | {"equation"}
+    return options
 
 
 def _process_pdf_window(
@@ -574,7 +578,13 @@ def _process_pdf_window(
         if effort in {"high", "xhigh"}:
             if vlm_predictor is None:
                 raise ValueError("VLM predictor is required for high/xhigh")
-            options = _inference_options(state, effort, parse_mode, image_analysis)
+            options = _inference_options(
+                state,
+                effort,
+                parse_mode,
+                image_analysis,
+                lang=hybrid_model.lang if hybrid_model else None,
+            )
             if effort == "high":
                 result = vlm_predictor.batch_extract_with_layout(**options)
             else:
@@ -661,7 +671,13 @@ async def aio_process_pdf_windows(
                 await run_sync(prepare)
             finally:
                 state = holder[0] if holder else None
-            options = _inference_options(state, effort, parse_mode, image_analysis)
+            options = _inference_options(
+                state,
+                effort,
+                parse_mode,
+                image_analysis,
+                lang=hybrid_model.lang if hybrid_model else None,
+            )
             if effort == "high":
                 result = await vlm_predictor.aio_batch_extract_with_layout(**options)
             else:
